@@ -171,6 +171,7 @@ class BertModel(object):
     with tf.variable_scope(scope, default_name="bert"):
       with tf.variable_scope("embeddings"):
         # Perform embedding lookup on the word ids.
+        """生成embedding_table和input的词token向量表达"""
         (self.embedding_output, self.embedding_table) = embedding_lookup(
             input_ids=input_ids,
             vocab_size=config.vocab_size,
@@ -181,6 +182,7 @@ class BertModel(object):
 
         # Add positional embeddings and token type embeddings, then layer
         # normalize and perform dropout.
+        """完善输入，添加segment embedding 和 position embedding 进输入"""
         self.embedding_output = embedding_postprocessor(
             input_tensor=self.embedding_output,
             use_token_type=True,
@@ -193,6 +195,7 @@ class BertModel(object):
             max_position_embeddings=config.max_position_embeddings,
             dropout_prob=config.hidden_dropout_prob)
 
+      """"""""""""""""""""""""""""""""""""
       with tf.variable_scope("encoder"):
         # This converts a 2D mask of shape [batch_size, seq_length] to a 3D
         # mask of shape [batch_size, seq_length, seq_length] which is used
@@ -416,12 +419,12 @@ def embedding_lookup(input_ids,
     one_hot_input_ids = tf.one_hot(flat_input_ids, depth=vocab_size)
     output = tf.matmul(one_hot_input_ids, embedding_table)
   else:
-    output = tf.gather(embedding_table, flat_input_ids)
+    output = tf.gather(embedding_table, flat_input_ids)  # tf.gather(params,indices,axis=0), 从params的axis维根据indices的参数值获取切片
 
   input_shape = get_shape_list(input_ids)
 
   output = tf.reshape(output,
-                      input_shape[0:-1] + [input_shape[-1] * embedding_size])
+                      input_shape[0:-1] + [input_shape[-1] * embedding_size])  # 这里是把output reshape成 [batch_size, seq_len * embedding_size]
   return (output, embedding_table)
 
 
@@ -465,7 +468,7 @@ def embedding_postprocessor(input_tensor,
   input_shape = get_shape_list(input_tensor, expected_rank=3)
   batch_size = input_shape[0]
   seq_length = input_shape[1]
-  width = input_shape[2]
+  width = input_shape[2]  # 768
 
   output = input_tensor
 
@@ -473,17 +476,21 @@ def embedding_postprocessor(input_tensor,
     if token_type_ids is None:
       raise ValueError("`token_type_ids` must be specified if"
                        "`use_token_type` is True.")
-    token_type_table = tf.get_variable(
+    token_type_table = tf.get_variable(  # 生成num_of_type * 768 的lookup table
         name=token_type_embedding_name,
         shape=[token_type_vocab_size, width],
         initializer=create_initializer(initializer_range))
     # This vocab will be small so we always do one-hot here, since it is always
     # faster for a small vocabulary.
-    flat_token_type_ids = tf.reshape(token_type_ids, [-1])
+    flat_token_type_ids = tf.reshape(token_type_ids, [-1])  # 将shape为[batch_size, seq_length]进行reshape
+    """对每个input中的token的type进行one-hot，变成一个 [batch_size, seq_len, num_of_type]的one-hot矩阵"""
     one_hot_ids = tf.one_hot(flat_token_type_ids, depth=token_type_vocab_size)
+    """[batch_size, seq_len, num_of_type] * [num_of_type * width(768)], 得到每个input的token的type的embedding向量"""
     token_type_embeddings = tf.matmul(one_hot_ids, token_type_table)
+    """reshape成[batch_size, seq_length, width]"""
     token_type_embeddings = tf.reshape(token_type_embeddings,
                                        [batch_size, seq_length, width])
+    """加到词语的向量表达式中"""
     output += token_type_embeddings
 
   if use_position_embeddings:
@@ -491,7 +498,7 @@ def embedding_postprocessor(input_tensor,
     with tf.control_dependencies([assert_op]):
       full_position_embeddings = tf.get_variable(
           name=position_embedding_name,
-          shape=[max_position_embeddings, width],
+          shape=[max_position_embeddings, width], # (512 * 768)
           initializer=create_initializer(initializer_range))
       # Since the position embedding table is a learned variable, we create it
       # using a (long) sequence length `max_position_embeddings`. The actual
@@ -502,6 +509,11 @@ def embedding_postprocessor(input_tensor,
       # for position [0, 1, 2, ..., max_position_embeddings-1], and the current
       # sequence has positions [0, 1, 2, ... seq_length-1], so we can just
       # perform a slice.
+
+      """
+      初始化一个shape为[max_positition_embeddings, width]的position_embedding矩阵，再按照对应的position加到输入句子的向量表示中。
+      """
+
       position_embeddings = tf.slice(full_position_embeddings, [0, 0],
                                      [seq_length, -1])
       num_dims = len(output.shape.as_list())
