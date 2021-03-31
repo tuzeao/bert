@@ -1,0 +1,57 @@
+
+
+该项目为Bert官方代码库，包含了BERT的实现代码与使用BERT进行文本分类和问题回答两个demo。关于Bert详细介绍，详见语雀-Bert，这里只有
+Bert代码实现大体功能结构介绍，细节介绍会写在源码里
+
+Bert的主体部分都在modeling.py文件里，其中包含了18个函数，定义了BERT模型的主体结构，即从input_ids（句子中词语id组成的tensor）到
+sequence_output（句子中每个词语的向量表示）以及pooled_output（句子的向量表示）的计算过程，是其它所有后续的任务（下游任务）的基础。
+
+1. class BertConfig(object): 确定Bert Model的超参数信息，在新建一个BertModel类时，必须配置其对应的BertConfig。BertConfig类包含
+了一个BertModel所需的超参数，除词表大小vocab_size外，均定义了其默认取值。BertConfig类中比较贴心的还定义了从python dict和json中生成
+BertConfig的方法以及将BertConfig转换为python dict 或者json字符串的方法。
+
+2. class BertModel(object): Bert Model。全部的操作都会在创建一个BertModel实例时候完成，全部的操作包括：【读取参数和各种参数情况的
+适配，生成输入的三种embedding并相加，进行mask，调用transformer model进行计算，整理输出和提供接口函数来获取】，基本就是精华核心了，
+建议源码细读。
+(以下都为公共函数，核心函数只有上面两个)
+3. def gelu(x): "a smoother version of the RELU."
+4. def get_activation(activation_string): 分别得到不同的激活函数【linear, relu, gelu, tanh】
+5. def get_assignment_map_from_checkpoint(tvars, init_checkpoint): 加载训练好的bert参数和返回可供一个模型能读取的初始化参数
+6. def dropout(input_tensor, dropout_prob):
+7. def layer_norm(input_tensor, name=None): 详见语雀“Bert为什么用Layer Norm而不是Batch Norm”
+8. def layer_norm_and_dropout(input_tensor, dropout_prob, name=None): # Layer Norm + Dropout 放一起了
+9. def create_initializer(initializer_range=0.02): 为dense层创造"截断长尾的正态分布"初始化参数
+10. def embedding_lookup(...):  给定输入的id 返回一个随机初始化的embedding_table和与这个table乘好了的token/segment/position embeddings
+11. def embedding_postprocessor(...): 对embedding的处理，包括对其完善信息，正则化，dropout，之后输出最终embedding
+12. def create_attention_mask_from_input_mask(from_tensor, to_mask): 构造attention mask
+13. def attention_layer(...):  multi-head attention的实现, 主要来自《Attention is all you need》这篇论文
+14. def transformer_model(...): Transformer的核心代码，基本就是《Attention is all you need》源码
+15. def get_shape_list(tensor, expected_rank=None, name=None): 返回一个tensor的shape
+16. def reshape_to_matrix(input_tensor): 把超过2维的tensor全部reshape成2维tensor
+17. def reshape_from_matrix(output_tensor, orig_shape_list): 把被压缩过的2维tensor reshape back to 原来的超过2维的tensor
+18. def assert_rank(tensor, expected_rank, name=None): Raises an exception if the tensor rank is not of the expected rank.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -266,6 +266,9 @@ class BertModel(object):
 
 def gelu(x):
   """Gaussian Error Linear Unit.
+    中文详解：https://blog.csdn.net/sinat_36618660/article/details/100088097
+    简单解释就是gelu的非线性变化不再是像Relu一样简单了，是一种符合预期的随机正则变换方式，讲人话就是当x(当前神经元激活值输入)增大，
+    被保留几率增大，当x减小，越有可能激活结果为0，即此时神经元被dropout；“smoother version of the RELU.”
 
   This is a smoother version of the RELU.
   Original paper: https://arxiv.org/abs/1606.08415
@@ -275,12 +278,12 @@ def gelu(x):
   Returns:
     `x` with the GELU activation applied.
   """
-  cdf = 0.5 * (1.0 + tf.tanh(
-      (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
+  cdf = 0.5 * (1.0 + tf.tanh((np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
   return x * cdf
 
 
 def get_activation(activation_string):
+  # 分别得到不同的激活函数【linear, relu, gelu, tanh】
   """Maps a string to a Python function, e.g., "relu" => `tf.nn.relu`.
 
   Args:
@@ -318,6 +321,7 @@ def get_activation(activation_string):
 
 
 def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
+  # 加载训练好的bert参数和返回可供一个模型能读取的初始化参数
   """Compute the union of the current variables and checkpoint variables."""
   assignment_map = {}
   initialized_variable_names = {}
