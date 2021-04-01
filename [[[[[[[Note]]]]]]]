@@ -6,30 +6,104 @@ Bert代码实现大体功能结构介绍，细节介绍会写在源码里
 Bert的主体部分都在modeling.py文件里，其中包含了18个函数，定义了BERT模型的主体结构，即从input_ids（句子中词语id组成的tensor）到
 sequence_output（句子中每个词语的向量表示）以及pooled_output（句子的向量表示）的计算过程，是其它所有后续的任务（下游任务）的基础。
 
-1. class BertConfig(object): 确定Bert Model的超参数信息，在新建一个BertModel类时，必须配置其对应的BertConfig。BertConfig类包含
-了一个BertModel所需的超参数，除词表大小vocab_size外，均定义了其默认取值。BertConfig类中比较贴心的还定义了从python dict和json中生成
-BertConfig的方法以及将BertConfig转换为python dict 或者json字符串的方法。
+    1. class BertConfig(object): 确定Bert Model的超参数信息，在新建一个BertModel类时，必须配置其对应的BertConfig。BertConfig类包含
+    了一个BertModel所需的超参数，除词表大小vocab_size外，均定义了其默认取值。BertConfig类中比较贴心的还定义了从python dict和json中生成
+    BertConfig的方法以及将BertConfig转换为python dict 或者json字符串的方法。
 
-2. class BertModel(object): Bert Model。全部的操作都会在创建一个BertModel实例时候完成，全部的操作包括：【读取参数和各种参数情况的
-适配，生成输入的三种embedding并相加，进行mask，调用transformer model进行计算，整理输出和提供接口函数来获取】，基本就是精华核心了，
-建议源码细读。
-(以下都为公共函数，核心函数只有上面两个)
-3. def gelu(x): "a smoother version of the RELU."
-4. def get_activation(activation_string): 分别得到不同的激活函数【linear, relu, gelu, tanh】
-5. def get_assignment_map_from_checkpoint(tvars, init_checkpoint): 加载训练好的bert参数和返回可供一个模型能读取的初始化参数
-6. def dropout(input_tensor, dropout_prob):
-7. def layer_norm(input_tensor, name=None): 详见语雀“Bert为什么用Layer Norm而不是Batch Norm”
-8. def layer_norm_and_dropout(input_tensor, dropout_prob, name=None): # Layer Norm + Dropout 放一起了
-9. def create_initializer(initializer_range=0.02): 为dense层创造"截断长尾的正态分布"初始化参数
-10. def embedding_lookup(...):  给定输入的id 返回一个随机初始化的embedding_table和与这个table乘好了的token/segment/position embeddings
-11. def embedding_postprocessor(...): 对embedding的处理，包括对其完善信息，正则化，dropout，之后输出最终embedding
-12. def create_attention_mask_from_input_mask(from_tensor, to_mask): 构造attention mask
-13. def attention_layer(...):  multi-head attention的实现, 主要来自《Attention is all you need》这篇论文
-14. def transformer_model(...): Transformer的核心代码，基本就是《Attention is all you need》源码
-15. def get_shape_list(tensor, expected_rank=None, name=None): 返回一个tensor的shape
-16. def reshape_to_matrix(input_tensor): 把超过2维的tensor全部reshape成2维tensor
-17. def reshape_from_matrix(output_tensor, orig_shape_list): 把被压缩过的2维tensor reshape back to 原来的超过2维的tensor
-18. def assert_rank(tensor, expected_rank, name=None): Raises an exception if the tensor rank is not of the expected rank.
+    2. class BertModel(object): Bert Model。全部的操作都会在创建一个BertModel实例时候完成，全部的操作包括：【读取参数和各种参数情况的
+    适配，生成输入的三种embedding并相加，进行mask，调用transformer model进行计算，整理输出和提供接口函数来获取】，基本就是精华核心了，
+    建议源码细读。
+    (以下都为公共函数，核心函数只有上面两个)
+    3. def gelu(x): "a smoother version of the RELU."
+    4. def get_activation(activation_string): 分别得到不同的激活函数【linear, relu, gelu, tanh】
+    5. def get_assignment_map_from_checkpoint(tvars, init_checkpoint): 加载训练好的bert参数和返回可供一个模型能读取的初始化参数
+    6. def dropout(input_tensor, dropout_prob):
+    7. def layer_norm(input_tensor, name=None): 详见语雀“Bert为什么用Layer Norm而不是Batch Norm”
+    8. def layer_norm_and_dropout(input_tensor, dropout_prob, name=None): # Layer Norm + Dropout 放一起了
+    9. def create_initializer(initializer_range=0.02): 为dense层创造"截断长尾的正态分布"初始化参数
+    10. def embedding_lookup(...):  给定输入的id 返回一个随机初始化的embedding_table和与这个table乘好了的token/segment/position embeddings
+    11. def embedding_postprocessor(...): 对embedding的处理，包括对其完善信息，正则化，dropout，之后输出最终embedding
+    12. def create_attention_mask_from_input_mask(from_tensor, to_mask): 构造attention mask
+    13. def attention_layer(...):  multi-head attention的实现, 主要来自《Attention is all you need》这篇论文
+    14. def transformer_model(...): Transformer的核心代码，基本就是《Attention is all you need》源码
+    15. def get_shape_list(tensor, expected_rank=None, name=None): 返回一个tensor的shape
+    16. def reshape_to_matrix(input_tensor): 把超过2维的tensor全部reshape成2维tensor
+    17. def reshape_from_matrix(output_tensor, orig_shape_list): 把被压缩过的2维tensor reshape back to 原来的超过2维的tensor
+    18. def assert_rank(tensor, expected_rank, name=None): Raises an exception if the tensor rank is not of the expected rank.
+
+
+run_classifier.py 文件是用于配置和启动基于BERT的文本分类任务，包括输入样本为句子对的（如MRPC）和输入样本为单个句子的（如CoLA）。
+    1. class InputExample(object): 一个输入样本包含id，text_a，text_b和label四个属性，text_a和text_b分别表示第一个句子和第二个句子，
+    因此text_b是可选的。这个的作用就是将全部的样本输入转化成这种自定义好的输入类
+    2. class PaddingInputExample(object): 定义这个类是因为TPU只支持固定大小的batch，在eval和predict的时候需要对batch做padding。
+    如不使用TPU，则无需使用这个类。
+    3. class InputFeatures(object): 定义了每个输入样本的一些特征，包含input_ids，input_mask，segment_ids，label_id
+    4. class DataProcessor(object) & class Xnli/Muli/Mrpc/ColaProcessor(DataProcessor): 数据处理模块，包括了取训练集\验证集\测试
+    集和对应labels等细节数据处理操作
+    6. def convert_single_example: 对一个InputExample转换为InputFeatures，里面调用了tokenizer进行一些句子清洗和预处理工作，同时截断
+    了长度超过最大值的句子。
+    7. def file_based_convert_examples_to_features: 将一批InputExample转换为InputFeatures，并写入到tfrecord文件中，相当于实现了从
+    原始数据集文件到tfrecord文件的转换。
+    8. def file_based_input_fn_builder: 这个函数用于根据tfrecord文件，构建estimator的input_fn，即先建立一个TFRecordDataset，然后进
+    行shuffle，repeat，decode和batch操作。
+    9. def create_model: 用于构建从input_ids到prediction和loss的计算过程，包括建立BertModel，获取BertModel的pooled_output，即句子
+    向量表示，然后构建隐藏层和bias，并计算logits和softmax，最终用cross_entropy计算出loss。
+    10. def model_fn_builder: 根据create_model函数，构建estimator的model_fn。由于model_fn需要labels输入，为简化代码减少判断，当要
+    进行predict时也要求传入label，因此DataProcessor中为每个predict样本生成了一个默认label（其取值并无意义）。这里构建的是TPUEstimator，
+    但没有TPU时，它也可以像普通estimator一样工作。
+    11. main函数:首先定义任务名称和processor的对应关系，因此如果定义了自己的processor，需要将其加入到processors字典中。其次从FLAGS中，
+    即启动命令中读取相关参数，构建model_fn和estimator，并根据参数中的do_train，do_eval和do_predict的取值决定要进行estimator的哪些操作。
+
+
+run_pretraining.py: 这个模块用于BERT模型的预训练，即使用masked language model和next sentence的方法，对BERT模型本身的参数进行训练。
+如果使用现有的预训练BERT模型在文本分类/问题回答等任务上进行fine_tune，则无需使用run_pretraining.py。
+
+create_pretraining_data.py:此处定义了如何将普通文本转换成可用于预训练BERT模型的tfrecord文件的方法。如果使用现有的预训练BERT模型在
+文本分类/问题回答等任务上进行fine_tune，则无需使用create_pretraining_data.py。
+
+tokenization.py: 此处定义了对输入的句子进行预处理的操作，预处理的内容包括：
+                    转换为Unicode
+                    切分成数组
+                    去除控制字符
+                    统一空格格式
+                    切分中文字符（即给连续的中文字符之间加上空格）
+                    将英文单词切分成小片段（如[“unaffable”]切分为[“un”, “##aff”, “##able”]）
+                    大小写和特殊形式字母转换
+                    分离标点符号（如 [“hello?”]转换为 [“hello”, “?”]）
+
+run_squad.py: 这个模块可以配置和启动基于BERT在squad数据集上的问题回答任务。
+
+extract_features.py:这个模块可以使用预训练的BERT模型，生成输入句子的向量表示和输入句子中各个词语的向量表示（类似ELMo）。这个模块不包
+含训练的过程，只是执行BERT的前向过程，使用固定的参数对输入句子进行转换。
+
+optimization.py: 这个模块配置了用于BERT的optimizer，即加入weight decay功能和learning_rate warmup功能的AdamOptimizer。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
