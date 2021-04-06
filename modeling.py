@@ -14,6 +14,35 @@
 # limitations under the License.
 """The main BERT model and related functions."""
 
+
+
+"""
+浏览顺序:
+
+1. class BertConfig 设定好bert模型的超参数配置 -》 
+2. def embedding_lookup  根据由原始输入通过词典转化word_id形式的输入，转化成word embedding/token embedding的形式，同时也生成初始化embedding matrix
+3. def embedding_postprocessor  有了token embedding, 自然要继续生成 segment embedding & position embedding, 并做一些处理 
+4. def create_attention_mask_from_input_mask  构造attention可视域的attention_mask，因为每个样本都经过padding了，视野必须要约束
+到有效范围词句内（[batch_size, from_seq_length, to_seq_length]，类似[1,0,1,1,0...]这样，1就表示训练时候这个位置的词是有效词）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -405,11 +434,8 @@ def embedding_lookup(input_ids,
   Returns:
     float Tensor of shape [batch_size, seq_length, embedding_size].
   """
-  # This function assumes that the input is of shape [batch_size, seq_length,
-  # num_inputs].
-  #
-  # If the input is a 2D tensor of shape [batch_size, seq_length], we
-  # reshape to [batch_size, seq_length, 1].
+  # 该函数默认输入的形状为【batch_size, seq_length, input_num】
+  # 如果输入为2D的【batch_size, seq_length】，则扩展到【batch_size, seq_length, 1】
   if input_ids.shape.ndims == 2:
     input_ids = tf.expand_dims(input_ids, axis=[-1])
 
@@ -427,8 +453,7 @@ def embedding_lookup(input_ids,
 
   input_shape = get_shape_list(input_ids)
 
-  output = tf.reshape(output,
-                      input_shape[0:-1] + [input_shape[-1] * embedding_size])  # 这里是把output reshape成 [batch_size, seq_len * embedding_size]
+  output = tf.reshape(output, input_shape[0:-1] + [input_shape[-1] * embedding_size])  # 这里是把output reshape成 [batch_size, seq_len, num_inputs * embedding_size]
   return (output, embedding_table)
 
 
@@ -450,7 +475,7 @@ def embedding_postprocessor(input_tensor,
     use_token_type: bool. Whether to add embeddings for `token_type_ids`.
     token_type_ids: (optional) int32 Tensor of shape [batch_size, seq_length].
       Must be specified if `use_token_type` is True.
-    token_type_vocab_size: int. The vocabulary size of `token_type_ids`.
+    token_type_vocab_size: int. The vocabulary size of `token_type_ids`. 一般是2
     token_type_embedding_name: string. The name of the embedding table variable
       for token type ids.
     use_position_embeddings: bool. Whether to add position embeddings for the
@@ -469,7 +494,7 @@ def embedding_postprocessor(input_tensor,
   Raises:
     ValueError: One of the tensor shapes or input values is invalid.
   """
-  input_shape = get_shape_list(input_tensor, expected_rank=3)
+  input_shape = get_shape_list(input_tensor, expected_rank=3) #【batch_size,seq_length,embedding_size】
   batch_size = input_shape[0]
   seq_length = input_shape[1]
   width = input_shape[2]  # 768
@@ -538,7 +563,10 @@ def embedding_postprocessor(input_tensor,
 
 
 def create_attention_mask_from_input_mask(from_tensor, to_mask):
-  """Create 3D attention mask from a 2D tensor mask.
+  """Create 3D attention mask from a 2D tensor mask. 以便后向的attention计算
+          ## 注意：
+        ## input_ids 是经过padding后的 [32,108, 99, 0, 0]; ##
+        ## input_mask 是有效词标志     [1, 1,   1,  0, 0] ##
 
   Args:
     from_tensor: 2D or 3D Tensor of shape [batch_size, from_seq_length, ...].

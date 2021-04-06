@@ -161,6 +161,10 @@ def whitespace_tokenize(text):
 class FullTokenizer(object):
   """Runs end-to-end tokenziation."""
 
+  """
+  详细解释见 http://fancyerii.github.io/2019/03/09/bert-codes/   -》 FullTokenizer部分
+  """
+
   def __init__(self, vocab_file, do_lower_case=True):
     self.vocab = load_vocab(vocab_file)
     self.inv_vocab = {v: k for k, v in self.vocab.items()}
@@ -169,8 +173,8 @@ class FullTokenizer(object):
 
   def tokenize(self, text):
     split_tokens = []
-    for token in self.basic_tokenizer.tokenize(text):
-      for sub_token in self.wordpiece_tokenizer.tokenize(token):
+    for token in self.basic_tokenizer.tokenize(text):    # 根据空格进行普通的分词
+      for sub_token in self.wordpiece_tokenizer.tokenize(token):  #  把词再切分成更细粒度的WordPiece
         split_tokens.append(sub_token)
 
     return split_tokens

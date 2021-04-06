@@ -405,24 +405,23 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
     if len(tokens_a) > max_seq_length - 2:
       tokens_a = tokens_a[0:(max_seq_length - 2)]
 
-  # The convention in BERT is:
-  # (a) For sequence pairs:
-  #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
-  #  type_ids: 0     0  0    0    0     0       0 0     1  1  1  1   1 1
-  # (b) For single sequences:
-  #  tokens:   [CLS] the dog is hairy . [SEP]
-  #  type_ids: 0     0   0   0  0     0 0
-  #
-  # Where "type_ids" are used to indicate whether this is the first
-  # sequence or the second sequence. The embedding vectors for `type=0` and
-  # `type=1` were learned during pre-training and are added to the wordpiece
-  # embedding vector (and position vector). This is not *strictly* necessary
-  # since the [SEP] token unambiguously separates the sequences, but it makes
-  # it easier for the model to learn the concept of sequences.
-  #
-  # For classification tasks, the first vector (corresponding to [CLS]) is
-  # used as the "sentence vector". Note that this only makes sense because
-  # the entire model is fine-tuned.
+  """
+  BERT的约定是：
+  (a) 对于两个序列：
+   tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
+   type_ids: 0     0  0    0    0     0       0 0     1  1  1  1   1 1
+  (b) 对于一个序列：
+   tokens:   [CLS] the dog is hairy . [SEP]
+   type_ids: 0     0   0   0  0     0 0
+
+  这里"type_ids"用于区分一个Token是来自第一个还是第二个序列
+  对于type=0和type=1，模型会学习出两个Embedding向量。
+  虽然理论上这是不必要的，因为[SEP]隐式的确定了它们的边界。
+  但是实际加上type后，模型能够更加容易的知道这个词属于那个序列。
+
+  对于分类任务，[CLS]对应的向量可以被看成 "sentence vector"
+  注意：一定需要Fine-Tuning之后才有意义
+  """
   tokens = []
   segment_ids = []
   tokens.append("[CLS]")
@@ -867,7 +866,7 @@ def main(_):
   if FLAGS.do_train:
     train_file = os.path.join(FLAGS.output_dir, "train.tf_record")
     file_based_convert_examples_to_features(
-        train_examples, label_list, FLAGS.max_seq_length, tokenizer, train_file)
+        train_examples, label_list, FLAGS.max_seq_length, tokenizer, train_file) # 把输入的tsv文件变成TFRecord文件，便于Tensorflow处理。
     tf.logging.info("***** Running training *****")
     tf.logging.info("  Num examples = %d", len(train_examples))
     tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
