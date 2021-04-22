@@ -866,8 +866,12 @@ def transformer_model(input_tensor,
   # help the optimizer.
   prev_output = reshape_to_matrix(input_tensor)
 
+
+  ########################### self-attention, 因为要12个 transformer encoder, 所以循环12次 ####################
+  ########################### 而multi-head attention虽然有12个self-attention组成，但是计算时候不用循环12次，而是都组成了一个
+  ########################### 更大维度的矩阵相乘，时间复杂度因此也跟单个 self-attention一样 #############################
   all_layer_outputs = []
-  for layer_idx in range(num_hidden_layers):
+  for layer_idx in range(num_hidden_layers):  # 12 transformer encoder
     with tf.variable_scope("layer_%d" % layer_idx):
       layer_input = prev_output
 
@@ -898,6 +902,7 @@ def transformer_model(input_tensor,
 
         # Run a linear projection of `hidden_size` then add a residual
         # with `layer_input`.
+        ###################### 首次 add & LN ############################
         with tf.variable_scope("output"):
           attention_output = tf.layers.dense(
               attention_output,
@@ -906,6 +911,7 @@ def transformer_model(input_tensor,
           attention_output = dropout(attention_output, hidden_dropout_prob)
           attention_output = layer_norm(attention_output + layer_input)
 
+      ######################### feed forward ###################
       # The activation is only applied to the "intermediate" hidden layer.
       with tf.variable_scope("intermediate"):
         intermediate_output = tf.layers.dense(
@@ -914,6 +920,7 @@ def transformer_model(input_tensor,
             activation=intermediate_act_fn,
             kernel_initializer=create_initializer(initializer_range))
 
+      ####################### 第二次 add & LN ##################
       # Down-project back to `hidden_size` then add the residual.
       with tf.variable_scope("output"):
         layer_output = tf.layers.dense(
